@@ -1,5 +1,9 @@
 package BST;
 
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.Queue;
+
 public class BST<Key extends Comparable<Key>, Value> {
     // 二叉查找树的根结点
     private Node root;
@@ -277,6 +281,40 @@ public class BST<Key extends Comparable<Key>, Value> {
      * -----------------------------------------------------------------------------------------------------------------
      * */
 
+    // ***13. 层序遍历，使用队列Queue
+    // 队列非空时，将队列队首元素出队，并将该元素的左右子结点入队，循环直至队列为空
+    public void printLevel(Node x){
+        Queue<Node> q = new LinkedList<Node>();
+        q.add(root);
+        while (!q.isEmpty()){
+            Node tmp = q.remove();
+            System.out.println(tmp.key + " -> " + tmp.val);
+            if (tmp.left != null){
+                q.add(tmp.left);
+            }
+            if (tmp.right != null){
+                q.add(tmp.right);
+            }
+        }
+    }
+
+    // ***1. 查找Key=key元素的值
+    public Value get_while(Key key){
+        Node x = root;
+        while (x != null){
+            int cmp = key.compareTo(x.key);
+            if (cmp < 0){
+                x = x.left;
+            }else if (cmp > 0){
+                x = x.right;
+            }else {
+                return x.val;
+            }
+        }
+        return null;
+    }
+
+
     public static void main(String[] args){
         BST<String, Integer> st = new BST<String, Integer>();
         st.put("S", 0);
@@ -293,6 +331,9 @@ public class BST<Key extends Comparable<Key>, Value> {
         st.put("L", 11);
         st.put("E", 12);
         st.print(st.root);
+
+        System.out.println("---------pringLevel--------");
+        st.printLevel(st.root);
 
         System.out.println("st.get(\"M\") = " + st.get("M"));
         System.out.println("st.min() = " + st.min());
@@ -314,6 +355,9 @@ public class BST<Key extends Comparable<Key>, Value> {
         System.out.println("---------delete P--------");
         st.delete("P");
         st.print(st.root);
+
+        System.out.println("st.get_while(\"M\") = " + st.get_while("M"));
+
     }
 }
 
