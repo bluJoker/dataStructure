@@ -59,6 +59,54 @@ public class AVLTree<Key extends Comparable<Key>, Value> {
         return isBalanced(x.left) && isBalanced(x.right);
     }
 
+    // 对结点y进行向右旋转操作，返回旋转后新的根结点x
+    //              y
+    //             /  \                                 x
+    //            x    T4     向右旋转 (y)             /   \
+    //           / \        - - - - - - - ->         z     y
+    //          z   T3                             /  \   /  \
+    //         / \                                T1  T2 T3  T4
+    //       T1  T2
+    private Node rightRotate(Node y){
+        Node x = y.left;
+        Node T3 = x.right;
+
+        // 向右旋转过程
+        x.right = y;
+        y.left = T3;
+
+        // 更新height，只有x和y的高度有可能改变了
+        // 先更新y，再更新x，因为x的高度值计算依赖其孩子y的高度
+        y.height = 1 + Math.max(getHeight(y.left), getHeight(y.right));
+        x.height = 1 + Math.max(getHeight(x.left), getHeight(x.right));
+
+        return x;
+    }
+
+    // 对结点y进行向左旋转操作，返回旋转后新的根结点x
+    //     y
+    //   /  \                                    x
+    //  T1    x           向左旋转 (y)          /   \
+    //       / \        - - - - - - - ->      y     z
+    //     T2   z                           /  \   /  \
+    //         /  \                        T1  T2 T3  T4
+    //       T3   T4
+    private Node leftRotate(Node y){
+        Node x = y.right;
+        Node T2 = x.left;
+
+        // 向左旋转过程
+        x.left = y;
+        y.right = T2;
+
+        // 更新height，只有x和y的高度有可能改变了
+        // 先更新y，再更新x，因为x的高度值计算依赖其孩子y的高度
+        y.height = 1 + Math.max(getHeight(y.left), getHeight(y.right));
+        x.height = 1 + Math.max(getHeight(x.left), getHeight(x.right));
+
+        return x;
+    }
+
 
     // 获得节点的高度，需要该接口的原因为有必要对null做特殊处理
     private int getHeight(Node x){
@@ -113,6 +161,8 @@ public class AVLTree<Key extends Comparable<Key>, Value> {
             x.val = val;
         }
 
+        // 此时结点已经插入完毕了
+
         // 插入结点后，需要更新高度
         x.height = 1 + Math.max(getHeight(x.left), getHeight(x.right));
 
@@ -124,7 +174,34 @@ public class AVLTree<Key extends Comparable<Key>, Value> {
             System.out.println("x = " + x.key + "  " + x.val + "  " + "unbalanced! 平衡因子 = " + balanceFactor);
         }
 
+        // 平衡维护，分四种情况
+        // 1. 插入的元素在不平衡的结点的左侧的左侧：LL
+        if (balanceFactor > 1 && getBalanceFactor(x.left) >= 0){
+            // 将平衡维护后的新跟结点返回到上一层递归，继续处理其上层的结点
+            return rightRotate(x);
+        }
 
+        // 2. 插入的元素在不平衡的结点的右侧的右侧：RR
+        if (balanceFactor < -1 && getBalanceFactor(x.right) <= 0){
+            return leftRotate(x);
+        }
+
+        // 3. 插入的元素在不平衡的结点的左侧的右侧：LR
+        // 先对 y的左孩子 进行左旋转，就变成了LL的情形，再对 y 进行右旋转
+        if (balanceFactor > 1 && getBalanceFactor(x.left) < 0){
+            x.left = leftRotate(x.left);
+            return rightRotate(x);
+        }
+
+        // 4. 插入的元素在不平衡的结点的右侧的左侧：RL
+        // 先对 y的右孩子 进行右旋转，就变成了RR的情形，再对 y 进行左旋转
+        if (balanceFactor < -1 && getBalanceFactor(x.right) > 0){
+            x.right = rightRotate(x.right);
+            return leftRotate(x);
+        }
+
+
+        // 该结点平衡性维护完，要回溯到其父亲结点再进行平衡维护，一直回溯到跟结点
         return x;
     }
 
