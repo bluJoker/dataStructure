@@ -2,6 +2,15 @@ package AVL;
 
 import java.util.ArrayList;
 
+/**
+ * 平衡因子BF: 二叉树上结点的左子树深度减去右子树深度的值
+ * 最小不平衡子树：距离插入结点最近的，且平衡因子的绝对值大于1的结点为根的子树
+ *
+ * (1) 当最小不平衡子树根结点的平衡因子BF > 1: 右旋
+ * (2)                             < -1: 左旋
+ * (3) 插入结点后，最小不平衡子树的BF与它的子树的BF符号相反时，就需要对子树结点先进行一次旋转以使得符号相同后，再反向旋转一次才能够完成平衡操作
+ * */
+
 public class AVLTree<Key extends Comparable<Key>, Value> {
     // 二叉查找树的根结点
     private Node root;
@@ -15,7 +24,7 @@ public class AVLTree<Key extends Comparable<Key>, Value> {
         private int height;           // 结点的高度
 
         // 结点构造函数
-        public Node(Key key, Value val, int N){
+        public Node(Key key, Value val){
             this.key = key;
             this.val = val;
             this.height = 1;           // 新添加的元素一定为叶子结点，故其高度为1
@@ -118,6 +127,12 @@ public class AVLTree<Key extends Comparable<Key>, Value> {
         return (x == null) ? 0 : getHeight(x.left) - getHeight(x.right);
     }
 
+    public Node min(Node x){
+        if (x.left == null){
+            return null;
+        }
+        return min(x.left);
+    }
 
     // ***1. 查找Key=key元素的值
     public Value get(Key key){
@@ -148,7 +163,7 @@ public class AVLTree<Key extends Comparable<Key>, Value> {
     private Node put(Node x, Key key, Value val){
         if (key == null) throw new IllegalArgumentException("calls put() with a null key");
         if (x == null){
-            return new Node(key, val, 1);
+            return new Node(key, val);
         }
 
         int cmp = key.compareTo(x.key);
@@ -200,25 +215,141 @@ public class AVLTree<Key extends Comparable<Key>, Value> {
             return leftRotate(x);
         }
 
-
         // 该结点平衡性维护完，要回溯到其父亲结点再进行平衡维护，一直回溯到跟结点
         return x;
     }
 
-    public static void main(String[] args){
-        AVLTree<Integer, String> st = new AVLTree<>();
-        st.put(3, "S");
-        st.put(2, "E");
-        st.put(1, "A");
-        st.put(4, "R");
-        st.put(5, "C");
-        st.put(6, "H");
-        st.put(7, "E");
-        st.put(10, "X");
-        st.put(9, "A");
-        st.put(8, "M");
+    // ***11. 删除键为key的元素
+    public void delete(Key key){
+        root = delete(root, key);
+    }
+    private Node delete(Node x, Key key){
+        if (x == null){
+            return null;
+        }
 
-        System.out.println("isBST : " + st.isBST());
-        System.out.println("st.isBalanced() = " + st.isBalanced());
+        // 将待返回给上层递归的结点先不return，保存该结点。返回之前要判断以该结点为根的树是否平衡，不平衡的话要做重平衡处理，返回的是重平衡后的平衡二叉树
+        Node retNode;
+
+        int cmp = key.compareTo(x.key);
+        if (cmp < 0){
+            x.left = delete(x.left, key);
+            retNode = x;
+        }else if (cmp > 0){
+            x.right = delete(x.right, key);
+            retNode = x;
+        }else {
+            if (x.left == null){
+                retNode = x.right;
+            }else if (x.right == null){
+                retNode = x.left;
+            }else {
+                Node t = x;
+                x = min(t.right);
+                x.right = delete(t.right, x.key);
+                x.left = t.left;
+                retNode = x;
+            }
+        }
+
+        // !!! 如果删除后树为空，则直接返回null。例如删除的是叶子结点
+        if (retNode == null){
+            return null;
+        }
+
+        // 此时结点已经删除完毕了
+
+        // 插入结点后，需要更新高度
+        retNode.height = 1 + Math.max(getHeight(retNode.left), getHeight(retNode.right));
+
+        // 计算插入新结点后的平衡因子
+        int balanceFactor =  getBalanceFactor(retNode);
+
+        // 当平衡因子的绝对值 > 1时，该树此时不为平衡二叉树，需要做处理，即重平衡
+        if (Math.abs(balanceFactor) > 1){
+            System.out.println("retNode = " + retNode.key + "  " + retNode.val + "  " + "unbalanced! 平衡因子 = " + balanceFactor);
+        }
+
+        // 平衡维护，分四种情况
+        // 1. 插入的元素在不平衡的结点的左侧的左侧：LL
+        if (balanceFactor > 1 && getBalanceFactor(retNode.left) >= 0){
+            // 将平衡维护后的新跟结点返回到上一层递归，继续处理其上层的结点
+            return rightRotate(retNode);
+        }
+
+        // 2. 插入的元素在不平衡的结点的右侧的右侧：RR
+        if (balanceFactor < -1 && getBalanceFactor(retNode.right) <= 0){
+            return leftRotate(retNode);
+        }
+
+        // 3. 插入的元素在不平衡的结点的左侧的右侧：LR
+        // 先对 y的左孩子 进行左旋转，就变成了LL的情形，再对 y 进行右旋转
+        if (balanceFactor > 1 && getBalanceFactor(retNode.left) < 0){
+            retNode.left = leftRotate(retNode.left);
+            return rightRotate(retNode);
+        }
+
+        // 4. 插入的元素在不平衡的结点的右侧的左侧：RL
+        // 先对 y的右孩子 进行右旋转，就变成了RR的情形，再对 y 进行左旋转
+        if (balanceFactor < -1 && getBalanceFactor(retNode.right) > 0){
+            x.right = rightRotate(retNode.right);
+            return leftRotate(retNode);
+        }
+        return retNode;
+    }
+
+    /**
+     * 不平衡的4中情况：
+     * 1. 对x的左儿子的左子树进行一次插入
+     * 2. 对x的左儿子的右子树进行一次插入
+     * 3. 对x的右儿子的右子树进行一次插入
+     * 4. 对x的右儿子的左子树进行一次插入
+     *
+     * PS: 其中1、3对称，2、4对称
+     * */
+    // put的另一种写法
+    // ***2. 插入键值对key-val。如果已存在，仅更新值
+    public void insert(Key key, Value val){
+        root = insert(root, key, val);
+    }
+    private Node insert(Node x, Key key, Value val){
+        if (key == null) throw new IllegalArgumentException("calls put() with a null key");
+        if (x == null){
+            return new Node(key, val);
+        }
+
+        int cmp = key.compareTo(x.key);
+        if (cmp < 0){
+            x.left = insert(x.left, key, val);
+
+            // 判断平衡性，并进行重平衡
+            if (getHeight(x.left) - getHeight(x.right) == 2){
+                if (getBalanceFactor(x.left) < 0){
+                    // 2. 对x的左儿子的右子树进行一次插入
+                    x.left = leftRotate(x.left);
+                }
+                // 1. 对x的左儿子的左子树进行一次插入
+                x = rightRotate(x);
+            }
+        }else if (cmp > 0){
+            x.right = insert(x.right, key, val);
+
+            // 判断平衡性，并进行重平衡
+            if (getHeight(x.right) - getHeight(x.left) == 2){
+                if (getBalanceFactor(x.right) > 0){
+                    // 4. 对x的右儿子的左子树进行一次插入
+                    x.right = rightRotate(x.right);
+                }
+                // 3. 对x的右儿子的右子树进行一次插入
+                x = leftRotate(x);
+            }
+        }else {
+            // 元素值相等，仅更新树中已存在元素的值
+            x.val = val;
+        }
+
+        // 回溯前，更新高度
+        x.height = 1 + Math.max(getHeight(x.left), getHeight(x.right));
+        return x;
     }
 }
